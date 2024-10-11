@@ -1,6 +1,6 @@
 #!/bin/python
 
-__all__ = ["SaltoRana"]
+__all__ = ["SaltoRana", "RungeKutta4", "Euler", "EulerCromer"]
 
 import numpy as np
 
