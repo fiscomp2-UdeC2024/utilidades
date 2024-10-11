@@ -5,6 +5,33 @@ __all__ = ["SaltoRana"]
 import numpy as np
 
 
+def _condiciones_iniciales(steps, *args):
+    """Función conveniente para configurar condiciones iniciales.
+
+    Argumentos
+    ----------
+    steps : (entero) Número de pasos de tiempo luego de dar las condiciones iniciales.
+    r0, v0, ... : (argumentos opcionales) Condiciones iniciales para un número arbitrario de variables.
+
+    Retorna
+    -------
+    arrays : (iterable) Un arreglo de funciones de tamaño (N, steps, casos), donde `N` es la cantidad de variables que necesitan condiciones iniciales, `steps` el número de steps para resolver una ecuacion diferencial, y casos es el tamaño de cada condicion inicial.
+    """
+    shape = [np.asarray(r0).shape for r0 in args]
+
+    if len({*shape})>1:
+        raise ValueError(f"Condiciones iniciales no tienen el mismo tamaño, con shapes: {shape}")
+
+    shape = shape[0]
+    arrays = []
+    for i,r0 in enumerate(args):
+        r = np.zeros((steps, *shape))
+        r[0] = r0
+        arrays.append(r)
+
+    return arrays[0] if len(arrays) == 1 else arrays
+
+
 def SaltoRana(a, r0, v0, t, **kwargs):
     """Método del salto de la rana para resolver ecuaciones de la forma r'(t) = v(t) y v'(t) = a(r(t), t). Si se conocen r(t) y v(t), es metodo retorna
         v(t+dt/2) = v(t-dt/2) + dt * a(r(t), t)
@@ -25,19 +52,8 @@ def SaltoRana(a, r0, v0, t, **kwargs):
     v : (iterable) Solución para la velocidad para cada instante de tiempo. Su dimensión es (t.size, *r0.shape)
     """
 
-    # Se asegura que r0 y v0 puedan ser tratados como iterables
-    r0 = np.asarray(r0)
-    v0 = np.asarray(v0)
-
-    # Calcula diferencia entre tiempos adyacentes. Es un iterable.
     dt = np.diff(t)
-
-    # crea dos listas vacias de tamaño (t.size, *r0.shape)
-    r = np.zeros((t.size, *r0.shape))
-    v = np.zeros((t.size, *v0.shape))
-
-    # inicializa usando las condiciones iniciales
-    r[0], v[0] = r0, v0
+    r, v = _condiciones_iniciales(t.size, r0, v0)
 
     # evalua aceleracion inicial
     a0 = a(r0, t[0], **kwargs)
@@ -74,14 +90,8 @@ def Euler(f, r0, t, **kwargs):
     r : Solución para cada instante de tiempo `t`. Es un arreglo de tamaño (t.size, r0.shape)
     """
 
-    r0 = np.asarray(r0)
     dt = np.diff(t)
-
-    # lista donde guarda la solucion
-    r = np.zeros((t.size, *r0.shape))
-
-    # condiciones iniciales
-    r[0] = r0
+    r = _condiciones_iniciales(t.size, r0)
 
     # usa el metodo de Euler en cada paso de tiempo
     for n in range(t.size-1):
@@ -109,17 +119,9 @@ def EulerCromer(a, r0, v0, t, **kwargs):
     v : (iterable) Velocidad para cada tiempo t y cada posición inicial v0, shape=(t.size, *v0.shape)
 
     """
-    r0 = np.asarray(r0)
-    v0 = np.asarray(v0)
 
     dt = np.diff(t)
-
-    # listas donde se guarda la solucion
-    r = np.zeros((t.size, *r0.shape))
-    v = np.zeros((t.size, *v0.shape))
-
-    # inicializa usando las condiciones iniciales
-    r[0], v[0] = r0, v0
+    r, v = _condiciones_iniciales(t.shape, r0, v0)
 
     # Metodo de Euler-Cromer
     for n in range(t.size-1):
@@ -130,7 +132,7 @@ def EulerCromer(a, r0, v0, t, **kwargs):
 
 
 def RungeKutta4(f, r0, t, *args, **kwargs):
-    """Método de Runge-Kutta de cuarto orden para ecuaciones de la forma r'(t) = f(r,t). Si se conoce r(t), este metodo retorna 
+    """Método de Runge-Kutta de cuarto orden para ecuaciones de la forma r'(t) = f(r,t). Si se conoce r(t), este metodo retorna
 
         r(t+dt) = r(t) + (dt/6) * (K1 + 2 K2 + 2 K3 + K4)
 
@@ -152,14 +154,9 @@ def RungeKutta4(f, r0, t, *args, **kwargs):
     -------
     r : Solución para cada instante de tiempo `t`. Es un arreglo de tamaño (t.size, r0.shape)
     """
-    r0 = np.asarray(r0)
+
     dt = np.diff(t)
-
-    # lista donde guarda la solucion
-    r = np.zeros((t.size, *r0.shape))
-
-    # condiciones iniciales
-    r[0] = r0
+    r = _condiciones_iniciales(t.size, r0)
 
     # usa el metodo de Runge-Kutta de 4to orden tradicional
     for n in range(t.size-1):
@@ -212,6 +209,6 @@ if __name__ == "__main__":
    def f(x, t):
        return np.array([x[1], -np.sin(x[0])])
 
-   x = RungeKutta4(f, r0=(np.linspace(0,6.0,10),np.zeros(10)), t=t)
+   x = RungeKutta4(f, r0=(r0,v0), t=t)
    r = x[:,0]
    v = x[:,1]
